@@ -1,0 +1,51 @@
+{
+  "name": "p5-ndi-sender",
+  "version": "1.0.0",
+  "description": "Load a p5.js sketch and broadcast it via NDI",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "setup": "bash setup-ndi.sh && npx @electron/rebuild",
+    "rebuild": "npx @electron/rebuild",
+    "build": "bash setup-ndi.sh && electron-builder"
+  },
+  "author": "Michael Flueckiger for DataDesign+Art HSLU",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^4.21.0",
+    "grandiose": "github:rse/grandiose"
+  },
+  "devDependencies": {
+    "electron": "^34.1.1",
+    "electron-builder": "^24.13.3",
+    "@electron/rebuild": "^3.6.0"
+  },
+  "build": {
+    "appId": "ch.miflck.p5-ndi-sender",
+    "productName": "p5 NDI Sender",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "identity": "Michael Flueckiger (FFUZS5J5U2)",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    }
+  }
+}

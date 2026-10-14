@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NDI Sender</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 24px;
+      user-select: none;
+    }
+    h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; color: #fff; }
+    .subtitle { font-size: 12px; color: #888; margin-bottom: 24px; }
+
+    .section {
+      background: #16213e;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 13px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; color: #6c7aa0; margin-bottom: 12px;
+    }
+
+    button {
+      background: #0f3460; color: #e0e0e0; border: 1px solid #1a4a80;
+      border-radius: 6px; padding: 10px 18px; font-size: 13px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    button:hover { background: #1a4a80; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.primary { background: #e94560; border-color: #e94560; color: #fff; }
+    button.primary:hover { background: #c73a52; }
+    button.success { background: #0a8754; border-color: #0a8754; color: #fff; }
+    button.success:hover { background: #097348; }
+    button.danger { background: #c0392b; border-color: #c0392b; color: #fff; }
+    button.danger:hover { background: #a93226; }
+
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+    select, input[type="number"], input[type="text"], input[type="url"] {
+      background: #0d1b36; color: #e0e0e0; border: 1px solid #1a4a80;
+      border-radius: 6px; padding: 8px 12px; font-size: 13px;
+    }
+    select { min-width: 200px; }
+    input[type="number"] { width: 80px; }
+    input[type="text"], input[type="url"] { width: 100%; }
+
+    label { font-size: 12px; color: #999; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field-wide { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+
+    .status-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+    .dot.green { background: #2ecc71; box-shadow: 0 0 6px #2ecc7188; }
+    .dot.red { background: #e74c3c; box-shadow: 0 0 6px #e74c3c88; }
+
+    .frame-count { font-size: 12px; color: #666; font-variant-numeric: tabular-nums; }
+    .error { color: #e74c3c; font-size: 12px; margin-top: 6px; }
+    .hint { font-size: 11px; color: #555; margin-top: 8px; }
+    .source-info { font-size: 12px; color: #7faacc; margin-top: 8px; word-break: break-all; }
+    .source-files { font-size: 11px; color: #666; margin-top: 4px; }
+
+    /* Source mode tabs */
+    .tabs { display: flex; gap: 0; margin-bottom: 14px; }
+    .tab {
+      padding: 8px 18px; font-size: 13px; cursor: pointer;
+      background: #0d1b36; color: #888; border: 1px solid #1a4a80;
+      transition: all 0.15s;
+    }
+    .tab:first-child { border-radius: 6px 0 0 6px; }
+    .tab:last-child { border-radius: 0 6px 6px 0; }
+    .tab.active { background: #1a4a80; color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+  <h1>NDI Sender</h1>
+  <p class="subtitle">Render a local sketch or remote website and broadcast via NDI</p>
+
+  <!-- STEP 1: Source -->
+  <div class="section">
+    <div class="section-title">1 — Source</div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('folder')">Local Folder</div>
+      <div class="tab" onclick="switchTab('url')">Website URL</div>
+    </div>
+
+    <div id="tab-folder" class="tab-content active">
+      <div class="row">
+        <button id="btn-folder" onclick="selectFolder()">Choose Folder…</button>
+      </div>
+      <div id="folder-info" class="source-info">No folder selected</div>
+      <div id="folder-files" class="source-files"></div>
+    </div>
+
+    <div id="tab-url" class="tab-content">
+      <div class="row">
+        <div class="field-wide">
+          <label>URL</label>
+          <input type="url" id="inp-url" placeholder="https://example.com" spellcheck="false">
+        </div>
+      </div>
+      <div class="hint">Any website, p5.js editor link, CodePen, shadertoy, etc.</div>
+    </div>
+
+    <div id="source-error" class="error"></div>
+  </div>
+
+  <!-- STEP 2: Launch -->
+  <div class="section">
+    <div class="section-title">2 — Render Window</div>
+    <div class="row">
+      <div class="field">
+        <label>Display</label>
+        <select id="sel-display"></select>
+      </div>
+      <div class="field">
+        <label>Width</label>
+        <input type="number" id="inp-width" value="1280" min="320" max="7680" step="10">
+      </div>
+      <div class="field">
+        <label>Height</label>
+        <input type="number" id="inp-height" value="720" min="240" max="4320" step="10">
+      </div>
+    </div>
+    <div class="row" style="margin-top: 12px;">
+      <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+        <input type="checkbox" id="chk-offscreen" style="accent-color:#e94560;">
+        Offscreen rendering <span style="color:#666; font-size:11px;">(no visible window — more efficient)</span>
+      </label>
+    </div>
+    <div class="row" style="margin-top: 12px;">
+      <button id="btn-launch" class="success" disabled onclick="launchSketch()">Launch</button>
+      <button id="btn-close-sketch" class="danger" disabled onclick="closeSketch()">Close</button>
+    </div>
+    <div class="status-bar">
+      <span class="dot" id="dot-sketch"></span>
+      <span id="sketch-status-text">Not running</span>
+    </div>
+  </div>
+
+  <!-- STEP 3: NDI -->
+  <div class="section">
+    <div class="section-title">3 — NDI Output</div>
+    <div class="row">
+      <div class="field">
+        <label>NDI Source Name</label>
+        <input type="text" id="inp-ndi-name" value="NDI Sender" style="width:180px;">
+      </div>
+      <div class="field">
+        <label>FPS</label>
+        <input type="number" id="inp-fps" value="30" min="1" max="120" step="1">
+      </div>
+    </div>
+    <div class="row" style="margin-top: 12px;">
+      <button id="btn-ndi-start" class="primary" disabled onclick="startNdi()">Start NDI</button>
+      <button id="btn-ndi-stop" disabled onclick="stopNdi()">Stop NDI</button>
+      <span class="frame-count" id="ndi-frame-count"></span>
+    </div>
+    <div class="status-bar">
+      <span class="dot" id="dot-ndi"></span>
+      <span id="ndi-status-text">NDI idle</span>
+    </div>
+    <div class="hint">Render window must be open to start NDI. Press ESC in visible window to close it.</div>
+  </div>
+
+<script>
+  // State
+  let sourceMode = 'folder' // 'folder' or 'url'
+  let folderPort = null
+  let sketchOpen = false
+  let ndiSending = false
+
+  // -------------------------------------------------------------------------
+  // Tab switching
+  // -------------------------------------------------------------------------
+  function switchTab(mode) {
+    sourceMode = mode
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'))
+    document.querySelector(`.tab:nth-child(${mode === 'folder' ? 1 : 2})`).classList.add('active')
+    document.getElementById(`tab-${mode}`).classList.add('active')
+    document.getElementById('source-error').textContent = ''
+    updateButtons()
+  }
+
+  // -------------------------------------------------------------------------
+  // Folder selection
+  // -------------------------------------------------------------------------
+  async function selectFolder() {
+    const result = await api.selectFolder()
+    if (!result.success) {
+      document.getElementById('source-error').textContent = result.error || ''
+      return
+    }
+    document.getElementById('source-error').textContent = ''
+    document.getElementById('folder-info').textContent = result.path
+    document.getElementById('folder-files').textContent =
+      `Files: ${result.files.slice(0, 10).join(', ')}${result.files.length > 10 ? '…' : ''}`
+    folderPort = result.port
+    updateButtons()
+  }
+
+  // -------------------------------------------------------------------------
+  // Source readiness check
+  // -------------------------------------------------------------------------
+  function hasSource() {
+    if (sourceMode === 'folder') return !!folderPort
+    if (sourceMode === 'url') {
+      const url = document.getElementById('inp-url').value.trim()
+      return url.startsWith('http://') || url.startsWith('https://')
+    }
+    return false
+  }
+
+  // -------------------------------------------------------------------------
+  // Launch / close
+  // -------------------------------------------------------------------------
+  async function launchSketch() {
+    const width = parseInt(document.getElementById('inp-width').value) || 1280
+    const height = parseInt(document.getElementById('inp-height').value) || 720
+    const displaySel = document.getElementById('sel-display')
+    const displayId = displaySel.value ? parseInt(displaySel.value) : undefined
+    const offscreen = document.getElementById('chk-offscreen').checked
+
+    const opts = { displayId, width, height, offscreen }
+
+    if (sourceMode === 'folder') {
+      if (!folderPort) return
+      opts.port = folderPort
+    } else {
+      const url = document.getElementById('inp-url').value.trim()
+      if (!url) {
+        document.getElementById('source-error').textContent = 'Enter a URL first'
+        return
+      }
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        document.getElementById('source-error').textContent = 'URL must start with http:// or https://'
+        return
+      }
+      opts.url = url
+    }
+
+    document.getElementById('source-error').textContent = ''
+    await api.launchSketch(opts)
+  }
+
+  async function closeSketch() {
+    await api.closeSketch()
+  }
+
+  // -------------------------------------------------------------------------
+  // NDI
+  // -------------------------------------------------------------------------
+  async function startNdi() {
+    const name = document.getElementById('inp-ndi-name').value || 'NDI Sender'
+    const fps = parseInt(document.getElementById('inp-fps').value) || 30
+    const result = await api.ndiStart({ name, fps })
+    if (!result.ok) {
+      alert('NDI error: ' + result.error)
+      return
+    }
+    ndiSending = true
+    updateButtons()
+    updateNdiDot(true)
+  }
+
+  async function stopNdi() {
+    const result = await api.ndiStop()
+    ndiSending = false
+    document.getElementById('ndi-frame-count').textContent = `${result.frameCount} frames sent`
+    updateButtons()
+    updateNdiDot(false)
+  }
+
+  // -------------------------------------------------------------------------
+  // UI updates
+  // -------------------------------------------------------------------------
+  function updateButtons() {
+    document.getElementById('btn-launch').disabled = !hasSource()
+    document.getElementById('btn-close-sketch').disabled = !sketchOpen
+    document.getElementById('btn-ndi-start').disabled = !sketchOpen || ndiSending
+    document.getElementById('btn-ndi-stop').disabled = !ndiSending
+  }
+
+  function updateNdiDot(active) {
+    document.getElementById('dot-ndi').className = 'dot ' + (active ? 'green' : '')
+    document.getElementById('ndi-status-text').textContent = active ? 'Sending via NDI' : 'NDI idle'
+  }
+
+  function updateSketchDot(open) {
+    document.getElementById('dot-sketch').className = 'dot ' + (open ? 'green' : '')
+    document.getElementById('sketch-status-text').textContent = open ? 'Running' : 'Not running'
+  }
+
+  function populateDisplays(displays) {
+    const sel = document.getElementById('sel-display')
+    sel.innerHTML = ''
+    displays.forEach(d => {
+      const opt = document.createElement('option')
+      opt.value = d.id
+      opt.textContent = d.label
+      if (d.primary) opt.selected = true
+      sel.appendChild(opt)
+    })
+  }
+
+  // Enable launch button as user types a URL
+  document.getElementById('inp-url').addEventListener('input', updateButtons)
+
+  // -------------------------------------------------------------------------
+  // Events from main process
+  // -------------------------------------------------------------------------
+  api.onDisplaysUpdated(displays => populateDisplays(displays))
+
+  api.onSketchStatus(status => {
+    sketchOpen = status.open
+    updateButtons()
+    updateSketchDot(status.open)
+    if (status.open && status.offscreen) {
+      document.getElementById('sketch-status-text').textContent = 'Running (offscreen)'
+    }
+    if (!status.open) {
+      ndiSending = false
+      updateNdiDot(false)
+    }
+  })
+
+  api.onNdiStatus(status => {
+    ndiSending = status.sending
+    updateButtons()
+    updateNdiDot(status.sending)
+    if (status.frameCount) {
+      document.getElementById('ndi-frame-count').textContent = `${status.frameCount} frames`
+    }
+  })
+
+  // Initial load
+  api.getDisplays().then(displays => populateDisplays(displays))
+  api.ndiStatus().then(status => {
+    if (!status.available) {
+      document.getElementById('ndi-status-text').textContent = 'NDI unavailable (grandiose not loaded)'
+      document.getElementById('dot-ndi').className = 'dot red'
+    }
+  })
+</script>
+</body>
+</html>
